@@ -1,0 +1,773 @@
+openapi: 3.0.3
+info:
+  title: LifePlus Healthcare Platform API
+  version: "2.0.0"
+  description: |
+    # LifePlus Healthcare Platform API
+
+    Enterprise-grade healthcare platform API for partner integration and third-party developers.
+
+    ## Platform Capabilities
+
+    ### Healthcare Services
+    - **Telemedicine**: Video consultations with licensed doctors
+    - **Appointments**: In-person doctor appointments at hospitals
+    - **Diagnostics**: Lab tests and diagnostic services
+    - **Home Sample Collection**: At-home diagnostic sample collection
+    - **Ambulance**: Emergency ambulance booking
+    - **Home Care**: Nursing and home care services
+
+    ### E-Commerce
+    - **Pharmacy**: Medicine ordering and delivery
+    - **Lifestyle Products**: Health supplements, medical devices
+    - **Shopping Cart**: Multi-vendor cart management
+    - **Order Fulfillment**: Complete order lifecycle management
+
+    ### Insurance & Packages
+    - **Health Packages**: Subscription-based healthcare bundles
+    - **Health Cards**: Membership cards with benefits
+    - **Insurance Policies**: Policy browsing and purchase
+    - **Claims Management**: Insurance claim processing
+
+    ## Architecture Overview
+
+    This API follows **domain-driven design** with clear separation of concerns:
+
+    ### Microservices Layer
+    - **Auth Service**: JWT-based authentication and authorization
+    - **User Service**: User profiles and beneficiary management
+    - **Order Service**: Unified order processing for all order types
+    - **Healthcare Service**: Medical services orchestration
+    - **Product Service**: Catalog and inventory management
+    - **Payment Service**: Payment gateway integration
+    - **Notification Service**: SMS, email, push notifications
+
+    ### Service Layer (Business Logic)
+    - Video call session management (Agora integration)
+    - Doctor availability and slot booking
+    - Package benefit calculation and tracking
+    - Promo code validation and discount application
+    - Corporate package enrollment
+
+    ### Integration Layer (Packages/SDKs)
+    - **Go SDK**: High-performance SDK for Go applications
+    - **PHP Laravel SDK**: Native Laravel package for PHP apps
+    - **TypeScript SDK**: Modern TypeScript client with types
+
+    ### External Plugins
+    - **SSL Commerz**: Payment gateway for Bangladesh
+    - **Agora.io**: Real-time video/audio communication
+    - **Firebase**: Push notifications
+    - **AWS S3**: File storage
+
+    ## API Standards
+
+    ### REST Principles
+    - **Resource-Based URIs**: Use plural nouns (`/orders`, `/users`, `/appointments`)
+    - **HTTP Verbs**: GET (read), POST (create), PATCH (update), DELETE (remove)
+    - **Stateless**: Each request contains all necessary information
+    - **HATEOAS**: Include links to related resources when applicable
+
+    ### Naming Conventions
+    - ✅ **Correct**: `/orders`, `/appointments`, `/products`
+    - ❌ **Incorrect**: `/product-orders`, `/get-orders`, `/createAppointment`
+
+    ### Response Format
+    All responses follow a consistent structure:
+    ```json
+    {
+      "success": true,
+      "message": "Operation completed successfully",
+      "data": { ... },
+      "meta": { "pagination": {...} }
+    }
+    ```
+
+    ### Error Handling
+    Errors follow RFC 7807 Problem Details:
+    ```json
+    {
+      "success": false,
+      "message": "Validation failed",
+      "code": 422,
+      "errors": {
+        "email": ["The email field is required"],
+        "phone": ["The phone format is invalid"]
+      }
+    }
+    ```
+
+    ### Pagination
+    List endpoints support consistent pagination:
+    - `page`: Current page number (default: 1)
+    - `per_page`: Items per page (default: 15, max: 100)
+    - `sort`: Field to sort by (default: created_at)
+    - `order`: Sort direction (asc/desc, default: desc)
+    - `q`: Search query
+
+    ### Authentication
+    Most endpoints require JWT Bearer authentication:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+
+    Obtain a token by calling `POST /sessions` with valid credentials.
+
+    ### Rate Limiting
+    - **Standard**: 60 requests/minute per IP
+    - **Authenticated**: 120 requests/minute per user
+    - **Partner API**: Custom limits based on agreement
+
+    ### Versioning
+    - API version is in the URL: `/api/v1`
+    - Breaking changes will result in new version: `/api/v2`
+    - Old versions supported for 12 months after deprecation notice
+
+    ## SDK Usage
+
+    ### Go SDK
+    ```go
+    import "github.com/LifeplusBangladesh/lifeplus-go-sdk"
+
+    client := lifeplus.NewClient("your-api-key")
+    products, err := client.Products.List(context.Background(), &lifeplus.ProductListOptions{
+        Page: 1,
+        PerPage: 20,
+    })
+    ```
+
+    ### PHP Laravel SDK
+    ```php
+    use LifePlus\SDK\LifePlusClient;
+
+    $client = new LifePlusClient(env('LIFEPLUS_API_KEY'));
+    $products = $client->products()->list(['per_page' => 20]);
+    ```
+
+    ### TypeScript SDK
+    ```typescript
+    import { LifePlusClient } from '@lifeplus/sdk';
+
+    const client = new LifePlusClient({ apiKey: 'your-api-key' });
+    const products = await client.products.list({ perPage: 20 });
+    ```
+
+  contact:
+    name: LifePlus API Support
+    email: mamun@lifeplusbd.com
+    url: https://developer.lifeplusbd.com
+  license:
+    name: Proprietary
+    url: https://lifeplusbd.com/terms
+
+servers:
+  - url: https://api.lifeplusbd.com/api/v2
+    description: Production
+  - url: https://api-staging.lifeplusbd.com/api/v2
+    description: Staging
+  - url: http://localhost:8000/api/v2
+    description: Local Development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and user profile
+  - name: Partner Authentication
+    description: |
+      Partner API key management for server-to-server authentication.
+      Partners use API keys instead of user JWT tokens to integrate LifePlus services.
+      Includes key generation, rotation, and validation.
+  - name: Addresses
+    description: User address management
+  - name: Telemedicine
+    description: Video calls and prescriptions
+  - name: Appointments
+    description: Doctor appointment booking
+  - name: HomeSample
+    description: Home sample collection tests
+  - name: Cart
+    description: Shopping cart operations
+  - name: Doctors
+    description: Doctor search and availability
+  - name: Products
+    description: Medicine and lifestyle products
+  - name: Orders
+    description: Order lifecycle management
+  - name: Packages
+    description: Wellness and homecare packages
+  - name: Ambulance
+    description: Ambulance booking and pricing
+  - name: Wellbeing
+    description: Medical tourism services
+  - name: HomeCare
+    description: Home care services
+  - name: Hospitals
+    description: Hospital information
+  - name: Partners
+    description: Partner discounts and diagnostics
+  - name: Lookup
+    description: Reference data (countries, specialties, manufacturers)
+  - name: Diagnostics
+    description: Diagnostic centers and test orders
+  - name: Policies
+    description: Insurance policies and claims
+  - name: Policy Orders
+    description: Policy order management
+  - name: Reviews
+    description: User reviews and ratings
+  - name: Package Types
+    description: Package type management
+  - name: Health Cards
+    description: Health card management
+  - name: Settings
+    description: App configuration and settings
+  - name: Notifications
+    description: Push notifications
+  - name: Promo Codes
+    description: Promotional codes and discounts
+  - name: Blog
+    description: Blog posts and content
+  - name: Medicine Reminders
+    description: Medicine reminder management
+  - name: Corporate
+    description: Corporate features
+  - name: Prescriptions
+    description: Prescription uploads
+  - name: Hotline
+    description: Emergency hotline requests
+
+components:
+  securitySchemes:
+    partnerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+      description: |
+        Partner API Key for server-to-server authentication.
+        Format: `Authorization: Bearer lpak_live_xxxxxxxxxxxxx`
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer authentication for user sessions
+    adminAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Admin JWT bearer authentication.
+    partnerIdAuth:
+      type: apiKey
+      in: header
+      name: X-Partner-ID
+      description: Partner identifier required for partner API key authentication.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Partner API Key for server-to-server authentication.
+        Format: lpk_{type}_{random40chars}
+        Example: X-API-Key: lpk_live_4f8b3c9d2e1a6b5c7d8e9f0a1b2c3d4e
+
+  schemas:
+    # Common schemas
+    PaginationParams:
+      $ref: "./schemas/common.yaml#/PaginationParams"
+    PaginationMeta:
+      $ref: "./schemas/common.yaml#/PaginationMeta"
+    UploadVideoCallPrescriptionRequest:
+      $ref: "./schemas/common.yaml#/UploadVideoCallPrescriptionRequest"
+
+    # Upload/Auth DTOs (per IDEAL_MODELS.md)
+    AvatarUpload:
+      $ref: "./schemas/common.yaml#/AvatarUpload"
+    ProfileUpdate:
+      $ref: "./schemas/common.yaml#/ProfileUpdate"
+    PrescriptionUpload:
+      $ref: "./schemas/common.yaml#/PrescriptionUpload"
+
+    # DTO Schemas (Data Transfer Objects - per IDEAL_MODELS.md)
+    CorporateCodeValidation:
+      $ref: "./schemas/dtos/corporate-code-validation.yaml#/CorporateCodeValidation"
+    PromoCodeCheck:
+      $ref: "./schemas/common.yaml#/PromoCodeCheck"
+    # PromoCodeCheckResult removed - consolidated into PromoCodeCheck
+    OrderCreation:
+      $ref: "./schemas/dtos/order-dtos.yaml#/OrderCreation"
+    OrderList:
+      $ref: "./schemas/dtos/order-dtos.yaml#/OrderList"
+    OrderStatusUpdate:
+      $ref: "./schemas/dtos/order-dtos.yaml#/OrderStatusUpdate"
+    CartItemAddition:
+      $ref: "./schemas/dtos/cart-dtos.yaml#/CartItemAddition"
+    CartItemUpdate:
+      $ref: "./schemas/dtos/cart-dtos.yaml#/CartItemUpdate"
+    PackageBooking:
+      $ref: "./schemas/dtos/package-dtos.yaml#/PackageBooking"
+    PackageCorporateEnrollment:
+      $ref: "./schemas/dtos/package-dtos.yaml#/PackageCorporateEnrollment"
+    AmbulanceBooking:
+      $ref: "./schemas/dtos/ambulance-dtos.yaml#/AmbulanceBooking"
+    ProductOrderPlacement:
+      $ref: "./schemas/dtos/product-dtos.yaml#/ProductOrderPlacement"
+    NotificationToken:
+      $ref: "./schemas/dtos/notification-dtos.yaml#/NotificationToken"
+    MedicineReminderTimeStatusUpdate:
+      $ref: "./schemas/dtos/medicine-reminder-dtos.yaml#/MedicineReminderTimeStatusUpdate"
+    DiagnosticList:
+      $ref: "./schemas/dtos/diagnostic-dtos.yaml#/DiagnosticList"
+    HomeCareOrderCreation:
+      $ref: "./schemas/dtos/home-care-dtos.yaml#/HomeCareOrderCreation"
+    UserPackageStatus:
+      $ref: "./schemas/dtos/package-dtos.yaml#/UserPackageStatus"
+    UserPackageStatusRemainingServices:
+      $ref: "./schemas/dtos/package-dtos.yaml#/UserPackageStatusRemainingServices"
+    AppointmentList:
+      $ref: "./schemas/dtos/appointment-dtos.yaml#/AppointmentList"
+    HotlineRequestList:
+      $ref: "./schemas/dtos/hotline-dtos.yaml#/HotlineRequestList"
+
+    # Hotline schemas
+    HotlineRequest:
+      $ref: "./schemas/hotline.yaml#/HotlineRequest"
+
+    # Error schemas
+    Error:
+      $ref: "./schemas/error.yaml#/Error"
+    SuccessResponse:
+      $ref: "./schemas/error.yaml#/SuccessResponse"
+
+    # User schemas
+    User:
+      $ref: "./schemas/user.yaml#/User"
+    UserRegistration:
+      $ref: "./schemas/user.yaml#/UserRegistration"
+    Credentials:
+      $ref: "./schemas/user.yaml#/Credentials"
+    Session:
+      $ref: "./schemas/user.yaml#/Session"
+    PhoneVerification:
+      $ref: "./schemas/user.yaml#/PhoneVerification"
+    Beneficiary:
+      $ref: "./schemas/user.yaml#/Beneficiary"
+
+    # Address schemas
+    Address:
+      $ref: "./schemas/address.yaml#/Address"
+
+    # Partner API Key schemas (cleaned - only entities and DTOs per IDEAL_MODELS.md)
+    PartnerApiKey:
+      $ref: "./schemas/partner-api-key.yaml#/PartnerApiKey"
+    PartnerApiKeyPermissions:
+      $ref: "./schemas/partner-api-key.yaml#/PartnerApiKeyPermissions"
+    ApiKeyCreation:
+      $ref: "./schemas/partner-api-key.yaml#/ApiKeyCreation"
+    ApiKeyUpdate:
+      $ref: "./schemas/partner-api-key.yaml#/ApiKeyUpdate"
+    ApiKeyValidation:
+      $ref: "./schemas/partner-api-key.yaml#/ApiKeyValidation"
+    PartnerApiKeyValidationRateLimits:
+      $ref: "./schemas/partner-api-key.yaml#/PartnerApiKeyValidationRateLimits"
+    PartnerApiKeyValidationRestrictions:
+      $ref: "./schemas/partner-api-key.yaml#/PartnerApiKeyValidationRestrictions"
+    PartnerApiKeyCreateDataAttributes:
+      $ref: "./schemas/partner-api-key.yaml#/PartnerApiKeyCreateDataAttributes"
+    
+    # Partner Integration schemas
+    PartnerAnalyticsPeriod:
+      $ref: "./schemas/partner.yaml#/PartnerAnalyticsPeriod"
+    CommissionListResponseSummary:
+      $ref: "./schemas/partner.yaml#/CommissionListResponseSummary"
+    SettlementDetailBreakdownByType:
+      $ref: "./schemas/partner.yaml#/SettlementDetailBreakdownByType"
+    PartnerOrderResponseData:
+      $ref: "./schemas/partner.yaml#/PartnerOrderResponseData"
+    
+    # Partner DTO schemas (for order creation)
+    ReferralLinkCreation:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/ReferralLinkCreation"
+    PartnerOrderCreation:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerOrderCreation"
+    PartnerOrderUserInfo:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerOrderUserInfo"
+    PartnerOrderItem:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerOrderItem"
+    PartnerAppointmentDetails:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerAppointmentDetails"
+    PartnerDiagnosticDetails:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerDiagnosticDetails"
+    PartnerDiagnosticItem:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerDiagnosticItem"
+    PartnerPackageDetails:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerPackageDetails"
+    PartnerDeliveryAddress:
+      $ref: "./schemas/dtos/partner-dtos.yaml#/PartnerDeliveryAddress"
+
+    # Doctor schemas
+    Doctor:
+      $ref: "./schemas/doctor.yaml#/Doctor"
+    DoctorSlotQuery:
+      $ref: "./schemas/doctor.yaml#/DoctorSlotQuery"
+    DoctorSlot:
+      $ref: "./schemas/doctor.yaml#/DoctorSlot"
+    Specialty:
+      $ref: "./schemas/doctor.yaml#/Specialty"
+
+    # Product schemas
+    Product:
+      $ref: "./schemas/product.yaml#/Product"
+    Cart:
+      $ref: "./schemas/product.yaml#/Cart"
+    CartItem:
+      $ref: "./schemas/product.yaml#/CartItem"
+    Manufacturer:
+      $ref: "./schemas/product.yaml#/Manufacturer"
+    MedicineGeneric:
+      $ref: "./schemas/product.yaml#/MedicineGeneric"
+    LifestyleCategory:
+      $ref: "./schemas/product.yaml#/LifestyleCategory"
+
+    # Order schemas
+    Order:
+      $ref: "./schemas/order.yaml#/Order"
+    Appointment:
+      $ref: "./schemas/order.yaml#/Appointment"
+    AppointmentCreation:
+      $ref: "./schemas/order.yaml#/AppointmentCreation"
+    AppointmentPaymentUpdate:
+      $ref: "./schemas/order.yaml#/AppointmentPaymentUpdate"
+    VideoCallRequest:
+      $ref: "./schemas/order.yaml#/VideoCallRequest"
+    VideoCallHistory:
+      $ref: "./schemas/order.yaml#/VideoCallHistory"
+    HomeSampleOrder:
+      $ref: "./schemas/order.yaml#/HomeSampleOrder"
+    HomeSampleLabTest_:
+      $ref: "./schemas/order.yaml#/HomeSampleLabTest_"
+    Package:
+      $ref: "./schemas/order.yaml#/Package"
+    PackageOrderClaim:
+      $ref: "./schemas/order.yaml#/PackageOrderClaim"
+    PackageServiceUsage:
+      $ref: "./schemas/order.yaml#/PackageServiceUsage"
+    AmbulanceOrder:
+      $ref: "./schemas/order.yaml#/AmbulanceOrder"
+    AmbulanceArea:
+      $ref: "./schemas/order.yaml#/AmbulanceArea"
+    AmbulancePriceQuery:
+      $ref: "./schemas/order.yaml#/AmbulancePriceQuery"
+    WellbeingOrder:
+      $ref: "./schemas/order.yaml#/WellbeingOrder"
+    HomeCareOrder:
+      $ref: "./schemas/order.yaml#/HomeCareOrder"
+    TelemedicineSlotReservation:
+      $ref: "./schemas/order.yaml#/TelemedicineSlotReservation"
+    MedicineReminderTime:
+      $ref: "./schemas/order.yaml#/MedicineReminderTime"
+    Hospital:
+      $ref: "./schemas/order.yaml#/Hospital"
+    Partner:
+      $ref: "./schemas/order.yaml#/Partner"
+    Country:
+      $ref: "./schemas/order.yaml#/Country"
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/error.yaml#/Error"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/error.yaml#/Error"
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/error.yaml#/Error"
+    UnprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/error.yaml#/Error"
+
+  parameters:
+    PageParam:
+      $ref: "./components/parameters.yaml#/parameters/PageParam"
+    PerPageParam:
+      $ref: "./components/parameters.yaml#/parameters/PerPageParam"
+    SortParam:
+      $ref: "./components/parameters.yaml#/parameters/SortParam"
+    OrderParam:
+      $ref: "./components/parameters.yaml#/parameters/OrderParam"
+    SearchParam:
+      $ref: "./components/parameters.yaml#/parameters/SearchParam"
+    IdPathParam:
+      $ref: "./components/parameters.yaml#/parameters/IdPathParam"
+
+paths:
+  # Auth paths
+  /users:
+    $ref: "./paths/auth.yaml#/~1users"
+  /sessions:
+    $ref: "./paths/auth.yaml#/~1sessions"
+  /phone-verifications:
+    $ref: "./paths/auth.yaml#/~1phone-verifications"
+  /beneficiaries:
+    $ref: "./paths/auth.yaml#/~1beneficiaries"
+  /profile:
+    $ref: "./paths/auth.yaml#/~1profile"
+
+  # Partner Authentication API Keys
+  /partners/api-keys:
+    $ref: "./paths/partner-auth.yaml#/~1partners~1api-keys"
+  /partners/api-keys/{keyId}:
+    $ref: "./paths/partner-auth.yaml#/~1partners~1api-keys~1{keyId}"
+  
+  # Partner Integration & Revenue Sharing API
+  /partners/auth/login:
+    $ref: "./paths/partners.yaml#/~1partners~1auth~1login"
+  /partners/me:
+    $ref: "./paths/partners.yaml#/~1partners~1me"
+  /partners/referral-links:
+    $ref: "./paths/partners.yaml#/~1partners~1referral-links"
+  /partners/analytics:
+    $ref: "./paths/partners.yaml#/~1partners~1analytics"
+  /partners/commissions:
+    $ref: "./paths/partners.yaml#/~1partners~1commissions"
+  /partners/commissions/{commissionId}:
+    $ref: "./paths/partners.yaml#/~1partners~1commissions~1{commissionId}"
+  /partners/transactions:
+    $ref: "./paths/partners.yaml#/~1partners~1transactions"
+  /partners/settlements:
+    $ref: "./paths/partners.yaml#/~1partners~1settlements"
+  /partners/settlements/{settlementId}:
+    $ref: "./paths/partners.yaml#/~1partners~1settlements~1{settlementId}"
+  /partners/orders:
+    $ref: "./paths/partners.yaml#/~1partners~1orders"
+
+  # Address paths
+  /addresses:
+    $ref: "./paths/addresses.yaml#/~1addresses"
+  /addresses/{id}:
+    $ref: "./paths/addresses.yaml#/~1addresses~1{id}"
+
+  # Telemedicine paths
+  /video-calls:
+    $ref: "./paths/telemedicine.yaml#/~1video-calls"
+  /video-calls/{id}/prescriptions:
+    $ref: "./paths/telemedicine.yaml#/~1video-calls~1{id}~1prescriptions"
+
+  # Appointment paths
+  /appointments:
+    $ref: "./paths/appointments.yaml#/~1appointments"
+  /foreign-doctor-appointments:
+    $ref: "./paths/appointments.yaml#/~1foreign-doctor-appointments"
+
+  # Cart paths
+  /cart:
+    $ref: "./paths/cart.yaml#/~1cart"
+  /cart/items/{id}:
+    $ref: "./paths/cart.yaml#/~1cart~1items~1{id}"
+
+  # Doctor paths
+  /doctors:
+    $ref: "./paths/doctors.yaml#/~1doctors"
+  /doctors/{slug}:
+    $ref: "./paths/doctors.yaml#/~1doctors~1{slug}"
+  /doctors/slots:
+    $ref: "./paths/doctors.yaml#/~1doctors~1slots"
+
+  # Product paths
+  /products:
+    $ref: "./paths/products.yaml#/~1products"
+  /products/{id}:
+    $ref: "./paths/products.yaml#/~1products~1{id}"
+  /lifestyle-categories:
+    $ref: "./paths/products.yaml#/~1lifestyle-categories"
+
+  # Order paths (consolidated)
+  /orders:
+    $ref: "./paths/orders.yaml#/~1orders"
+  /orders/{id}:
+    $ref: "./paths/orders.yaml#/~1orders~1{id}"
+  /orders/{id}/invoice:
+    $ref: "./paths/orders.yaml#/~1orders~1{id}~1invoice"
+
+  # Legacy/deprecated (kept for backward compatibility)
+  /product-orders:
+    $ref: "./paths/products.yaml#/~1product-orders"
+
+  # Ambulance paths
+  /ambulance/orders:
+    $ref: "./paths/ambulance.yaml#/~1ambulance~1orders"
+  /ambulance/orders/{id}:
+    $ref: "./paths/ambulance.yaml#/~1ambulance~1orders~1{id}"
+  /ambulance/price:
+    $ref: "./paths/ambulance.yaml#/~1ambulance~1price"
+  /ambulance/areas:
+    $ref: "./paths/ambulance.yaml#/~1ambulance~1areas"
+
+  # Package paths
+  /packages:
+    $ref: "./paths/packages.yaml#/~1packages"
+  /home-sample-orders:
+    $ref: "./paths/packages.yaml#/~1home-sample-orders"
+  /home-sample-tests:
+    $ref: "./paths/packages.yaml#/~1home-sample-tests"
+  /wellbeing/orders:
+    $ref: "./paths/packages.yaml#/~1wellbeing~1orders"
+  /home-care/orders:
+    $ref: "./paths/packages.yaml#/~1home-care~1orders"
+  /home-care/orders/{order_id}:
+    $ref: "./paths/packages.yaml#/~1home-care~1orders~1{order_id}"
+
+  # Lookup paths
+  /specialties:
+    $ref: "./paths/lookup.yaml#/~1specialties"
+  /countries:
+    $ref: "./paths/lookup.yaml#/~1countries"
+  /manufacturers:
+    $ref: "./paths/lookup.yaml#/~1manufacturers"
+  /generics:
+    $ref: "./paths/lookup.yaml#/~1generics"
+  /hospitals:
+    $ref: "./paths/lookup.yaml#/~1hospitals"
+  /hospitals/{id}:
+    $ref: "./paths/lookup.yaml#/~1hospitals~1{id}"
+  /partners:
+    $ref: "./paths/lookup.yaml#/~1partners"
+  /partners/{id}:
+    $ref: "./paths/lookup.yaml#/~1partners~1{id}"
+
+  # Diagnostics paths
+  /diagnostics:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostics"
+  /diagnostics/{id}:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostics~1{id}"
+  /diagnostic-categories:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostic-categories"
+  /diagnostic-categories/{id}:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostic-categories~1{id}"
+  /diagnostic-orders:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostic-orders"
+  /diagnostic-orders/{id}:
+    $ref: "./paths/diagnostics.yaml#/~1diagnostic-orders~1{id}"
+
+  # Policy paths
+  /policies:
+    $ref: "./paths/policies.yaml#/~1policies"
+  /policies/{id}:
+    $ref: "./paths/policies.yaml#/~1policies~1{id}"
+  /policy-categories:
+    $ref: "./paths/policies.yaml#/~1policy-categories"
+  /policy-orders:
+    $ref: "./paths/policies.yaml#/~1policy-orders"
+  /policy-orders/{id}:
+    $ref: "./paths/policies.yaml#/~1policy-orders~1{id}"
+  /policy-orders/{id}/status:
+    $ref: "./paths/policies.yaml#/~1policy-orders~1{id}~1status"
+  /policy-orders/{id}/claim:
+    $ref: "./paths/policies.yaml#/~1policy-orders~1{id}~1claim"
+
+  # Review paths
+  /reviews:
+    $ref: "./paths/reviews.yaml#/~1reviews"
+  /reviews/{id}:
+    $ref: "./paths/reviews.yaml#/~1reviews~1{id}"
+
+  # Package Types paths
+  /package-types:
+    $ref: "./paths/package-types.yaml#/~1package-types"
+  /package-types/{id}:
+    $ref: "./paths/package-types.yaml#/~1package-types~1{id}"
+
+  # Health Cards paths
+  /health-cards:
+    $ref: "./paths/health-cards.yaml#/~1health-cards"
+  /health-cards/{id}:
+    $ref: "./paths/health-cards.yaml#/~1health-cards~1{id}"
+
+  # Settings paths
+  /slider-images:
+    $ref: "./paths/settings.yaml#/~1slider-images"
+  /delivery-charges:
+    $ref: "./paths/settings.yaml#/~1delivery-charges"
+  /settings:
+    $ref: "./paths/settings.yaml#/~1settings"
+
+  # Notification paths
+  /notifications:
+    $ref: "./paths/notifications.yaml#/~1notifications"
+
+  # Promo Code paths
+  /promo-code-validations:
+    $ref: "./paths/promo-codes.yaml#/~1promo-code-validations"
+
+  # Blog paths
+  /blogs:
+    $ref: "./paths/blog.yaml#/~1blogs"
+  /blogs/{id}:
+    $ref: "./paths/blog.yaml#/~1blogs~1{id}"
+
+  # Medicine Reminder paths
+  /medicine-reminders:
+    $ref: "./paths/medicine-reminders.yaml#/~1medicine-reminders"
+  /medicine-reminders/{id}/times/{timeId}:
+    $ref: "./paths/medicine-reminders.yaml#/~1medicine-reminders~1{id}~1times~1{timeId}"
+  /medicine-reminders/{id}/medicines/{medicineId}:
+    $ref: "./paths/medicine-reminders.yaml#/~1medicine-reminders~1{id}~1medicines~1{medicineId}"
+
+  # Corporate paths
+  /corporate/code-validations:
+    $ref: "./paths/corporate.yaml#/~1corporate~1code-validations"
+  /users/{id}/package-status:
+    $ref: "./paths/corporate.yaml#/~1users~1{id}~1package-status"
+
+  # Prescription paths
+  /prescriptions:
+    $ref: "./paths/prescriptions.yaml#/~1prescriptions"
+
+  # Additional Telemedicine paths
+  /telemedicine/slots:
+    $ref: "./paths/telemedicine.yaml#/~1telemedicine~1slots"
+  /video-calls/{id}/token:
+    $ref: "./paths/telemedicine.yaml#/~1video-calls~1{id}~1token"
+  /telemedicine/history:
+    $ref: "./paths/telemedicine.yaml#/~1telemedicine~1history"
+
+  # Additional Appointment paths
+  /appointments/{id}/payment:
+    $ref: "./paths/appointments.yaml#/~1appointments~1{id}~1payment"
+
+  # Additional Package paths
+  /package-orders/corporate-enrollment:
+    $ref: "./paths/packages.yaml#/~1package-orders~1corporate-enrollment"
+  /package-orders/{id}/service-usage:
+    $ref: "./paths/packages.yaml#/~1package-orders~1{id}~1service-usage"
+  /package-orders/{id}/claims:
+    $ref: "./paths/packages.yaml#/~1package-orders~1{id}~1claims"
+
+  # Additional Product paths
+  /categories/lifestyle:
+    $ref: "./paths/products.yaml#/~1categories~1lifestyle"
+  /categories/medicine:
+    $ref: "./paths/products.yaml#/~1categories~1medicine"
+
+  # Additional Auth paths
+  /profile/avatar:
+    $ref: "./paths/auth.yaml#/~1profile~1avatar"
+
+  # Hotline paths
+  /hotline-requests:
+    $ref: "./paths/hotline.yaml#/~1hotline-requests"
+  /hotline-requests/{id}:
+    $ref: "./paths/hotline.yaml#/~1hotline-requests~1{id}"
